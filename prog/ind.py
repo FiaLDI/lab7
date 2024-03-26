@@ -12,7 +12,6 @@ def display_products(staff: t.List[t.Dict[str, t.Any]]) -> None:
     Отобразить список продуктов
     """
     if staff:
-        # Заголовок таблицы.
         line = "+-{}-+-{}-+-{}-+-{}-+".format(
             "-" * 4, "-" * 30, "-" * 20, "-" * 10
         )
@@ -23,7 +22,7 @@ def display_products(staff: t.List[t.Dict[str, t.Any]]) -> None:
             )
         )
         print(line)
-        # Вывести данные о всех сотрудниках.
+        
         for idx, worker in enumerate(staff, 1):
             print(
                 "| {:>4} | {:<30} | {:<20} | {:>8} |".format(
@@ -179,8 +178,7 @@ def main(command_line=None):
     _ = subparsers.add_parser(
         "display", parents=[file_parser], help="Display all products"
     )
-
-    # Создать субпарсер для выбора работников.
+    
     select = subparsers.add_parser(
         "select", parents=[file_parser], help="Select the products"
     )
