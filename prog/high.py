@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import sqlite3
 import typing as t
-from pathlib import Path
+
+import psycopg2
 
 
 def display_products(staff: t.List[t.Dict[str, t.Any]]) -> None:
@@ -37,17 +37,23 @@ def display_products(staff: t.List[t.Dict[str, t.Any]]) -> None:
         print("Список работников пуст.")
 
 
-def create_db(database_path: Path) -> None:
+def create_db() -> None:
     """
     Создать базу данных.
     """
-    conn = sqlite3.connect(database_path)
+    conn = psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="pwsi6tg3",
+        host="localhost",
+        port=5432,
+    )
     cursor = conn.cursor()
     # Создать таблицу с информацией о магазинах.
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS markets (
-            market_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            market_id serial primary key,
             market_title TEXT NOT NULL
         )
         """
@@ -56,7 +62,7 @@ def create_db(database_path: Path) -> None:
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS products (
-            product_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id serial primary key,
             product_name TEXT NOT NULL,
             market_id INTEGER NOT NULL,
             product_count INTEGER NOT NULL,
@@ -64,41 +70,45 @@ def create_db(database_path: Path) -> None:
         )
         """
     )
+    conn.commit()
     conn.close()
 
 
-def add_worker(
-    database_path: Path, name: str, markets: str, count: int
-) -> None:
+def add_worker(name: str, markets: str, count: int) -> None:
     """
     Добавить продукт в базу данных.
     """
-    conn = sqlite3.connect(database_path)
+    conn = psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="pwsi6tg3",
+        host="localhost",
+        port=5432,
+    )
     cursor = conn.cursor()
-
     cursor.execute(
         """
-        SELECT market_id FROM markets WHERE market_title = ?
+        SELECT market_id FROM markets WHERE market_title = %s
         """,
         (markets,),
     )
+    market_id = cursor.lastrowid
     row = cursor.fetchone()
     if row is None:
         cursor.execute(
             """
-            INSERT INTO markets (market_title) VALUES (?)
+            INSERT INTO markets (market_title) VALUES (%s)
             """,
             (markets,),
         )
         market_id = cursor.lastrowid
     else:
         market_id = row[0]
-    print(market_id)
-
+    conn.commit()
     cursor.execute(
         """
-        INSERT INTO products (product_name, market_id, product_count)
-        VALUES (?, ?, ?)
+        insert into products (product_name, market_id, product_count) 
+        values (%s, %s, %s);
         """,
         (name, market_id, count),
     )
@@ -106,15 +116,24 @@ def add_worker(
     conn.close()
 
 
-def select_all(database_path: Path) -> t.List[t.Dict[str, t.Any]]:
+def select_all() -> t.List[t.Dict[str, t.Any]]:
     """
     Выбрать всех работников.
     """
-    conn = sqlite3.connect(database_path)
+    conn = psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="pwsi6tg3",
+        host="localhost",
+        port=5432,
+    )
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT products.product_name, markets.market_title, products.product_count
+        SELECT 
+        products.product_name, 
+        markets.market_title, 
+        products.product_count
         FROM products
         INNER JOIN markets ON markets.market_id = products.market_id
         """
@@ -131,11 +150,17 @@ def select_all(database_path: Path) -> t.List[t.Dict[str, t.Any]]:
     ]
 
 
-def select_products(database_path: Path, find_name):
+def select_products(find_name):
     """
     Выбрать продукт с заданным именем.
     """
-    conn = sqlite3.connect(database_path)
+    conn = psycopg2.connect(
+        dbname="postgres",
+        user="postgres",
+        password="pwsi6tg3",
+        host="localhost",
+        port=5432,
+    )
     cursor = conn.cursor()
 
     cursor.execute(
@@ -143,7 +168,7 @@ def select_products(database_path: Path, find_name):
         SELECT products.product_name, markets.market_title, products.product_count
         FROM products
         INNER JOIN markets ON markets.market_id = products.market_id
-        WHERE products.product_name = ?
+        WHERE products.product_name = %s
         """,
         (find_name,),
     )
@@ -160,15 +185,6 @@ def select_products(database_path: Path, find_name):
 
 
 def main(command_line=None):
-    file_parser = argparse.ArgumentParser(add_help=False)
-    file_parser.add_argument(
-        "--db",
-        action="store",
-        required=False,
-        default=str(Path.home() / "products.db"),
-        help="The data file name",
-    )
-
     parser = argparse.ArgumentParser("products")
     parser.add_argument(
         "--version", action="version", version="%(prog)s 0.1.0"
@@ -176,9 +192,7 @@ def main(command_line=None):
 
     subparsers = parser.add_subparsers(dest="command")
 
-    add = subparsers.add_parser(
-        "add", parents=[file_parser], help="Add a new product"
-    )
+    add = subparsers.add_parser("add", help="Add a new product")
     add.add_argument(
         "-n",
         "--name",
@@ -202,13 +216,9 @@ def main(command_line=None):
         help="The count",
     )
 
-    _ = subparsers.add_parser(
-        "display", parents=[file_parser], help="Display all products"
-    )
+    _ = subparsers.add_parser("display", help="Display all products")
 
-    select = subparsers.add_parser(
-        "select", parents=[file_parser], help="Select the products"
-    )
+    select = subparsers.add_parser("select", help="Select the products")
     select.add_argument(
         "--sp",
         action="store",
@@ -216,17 +226,15 @@ def main(command_line=None):
         help="The required name of market",
     )
     args = parser.parse_args(command_line)
-
-    db_path = Path(args.db)
-    create_db(db_path)
+    create_db()
     if args.command == "add":
-        add_worker(db_path, args.name, args.market, args.count)
+        add_worker(args.name, args.market, args.count)
 
     elif args.command == "display":
-        display_products(select_all(db_path))
+        display_products(select_all())
 
     elif args.command == "select":
-        display_products(select_products(db_path, args.sp))
+        display_products(select_products(args.sp))
         pass
 
 
