@@ -23,13 +23,13 @@ def display_products(staff: t.List[t.Dict[str, t.Any]]) -> None:
         )
         print(line)
 
-        for idx, worker in enumerate(staff, 1):
+        for idx, product in enumerate(staff, 1):
             print(
                 "| {:>4} | {:<30} | {:<20} | {:>8} |".format(
                     idx,
-                    worker.get("name", ""),
-                    worker.get("market", ""),
-                    worker.get("count", 0),
+                    product.get("name", ""),
+                    product.get("market", ""),
+                    product.get("count", 0),
                 )
             )
             print(line)
@@ -67,7 +67,7 @@ def create_db(database_path: Path) -> None:
     conn.close()
 
 
-def add_worker(
+def add_product(
     database_path: Path, name: str, markets: str, count: int
 ) -> None:
     """
@@ -220,7 +220,7 @@ def main(command_line=None):
     db_path = Path(args.db)
     create_db(db_path)
     if args.command == "add":
-        add_worker(db_path, args.name, args.market, args.count)
+        add_product(db_path, args.name, args.market, args.count)
 
     elif args.command == "display":
         display_products(select_all(db_path))
