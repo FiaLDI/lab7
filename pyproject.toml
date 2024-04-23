@@ -10,7 +10,7 @@ readme = "README.md"
 python = "^3.9"
 psycopg2 = "^2.9.9"
 psycopg2-binary = "^2.9.9"
-
+pre-commit = "^3.7.0"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^7.0.0"
